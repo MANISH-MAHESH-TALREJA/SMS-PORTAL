@@ -135,6 +135,11 @@
                     $send_custom_data[$custom_three_param] = $custom_three_value;
                 }
 
+                if(isset($data['dlt_template_id']))
+                {
+                    $send_custom_data["dlt_template_id"] = $data['dlt_template_id'];
+                }
+
                 //if json encoded then encode custom data json_encode($send_custom_data) otherwise do http_build_query
                 if ($cg_info->json_encoded_post) {
                     $parameters = json_encode($send_custom_data);

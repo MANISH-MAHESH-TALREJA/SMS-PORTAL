@@ -84,6 +84,11 @@
                 $input          = $this->prepareInput($request, $user, $sms_type, $carbon);
                 $sendingServers = CustomerBasedSendingServer::where('user_id', $user->id)->where('status', 1)->count();
 
+                if($request->get('dlt_template_id') !== null)
+                {
+                    $input["dlt_template_id"] = strtolower($request->get('dlt_template_id'));
+                }
+
                 if ($sendingServers > 0 && isset($user->api_sending_server)) {
                     $input['sending_server'] = $user->api_sending_server;
                 }

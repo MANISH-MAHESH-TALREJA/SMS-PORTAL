@@ -24,6 +24,26 @@ use Symfony\Component\Console\Output\BufferedOutput;
 |
 */
 
+
+/*Route::get('/', function () {
+    return view('welcome');
+});*/
+
+Route::get('/about', function () {
+    return view('about');
+});
+Route::get('/contact', function () {
+    return view('contact');
+});
+Route::get('/privacy', function () {
+    return view('privacy');
+});
+Route::get('/service', function () {
+    return view('service');
+});
+Route::get('/faq', function () {
+    return view('faq');
+});
 Route::get('/', function () {
 
     if (config('app.stage') == 'new') {
@@ -34,7 +54,7 @@ Route::get('/', function () {
         return redirect('update');
     }
 
-    return redirect('login');
+    return view('welcome');
 });
 
 // locale Route
