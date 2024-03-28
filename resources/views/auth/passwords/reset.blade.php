@@ -19,7 +19,7 @@
     <div class="auth-wrapper auth-cover">
         <div class="auth-inner row m-0">
             <!-- Brand logo-->
-            <a class="brand-logo" href="{{route('login')}}">
+            <a class="brand-logo" href="{{url("/")}}">
                 <img src="{{asset(config('app.logo'))}}" alt="{{config('app.name')}}"/>
             </a>
             <!-- /Brand logo-->

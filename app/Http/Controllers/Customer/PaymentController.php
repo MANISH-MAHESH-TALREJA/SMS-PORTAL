@@ -551,14 +551,14 @@
                     $code = $request->post("code");
                     $txnid = $request->post("transactionId");
                     $amount = $request->post("amount");
-                    if ($amount != $senderid->price) {
+                    if (intval($amount) != intval($senderid->price * 100)) {
                         return redirect()->route('customer.senderid.pay', $senderid->uid)->with([
                             'status'  => 'info',
                             'message' => __('locale.exceptions.invalid_action'),
                         ]);
                     }
                     if ($code == 'PAYMENT_SUCCESS') {
-                        $paymentMethod = PaymentMethods::where('status', true)->where('type', 'phonepe')->first();
+                        $paymentMethod = PaymentMethods::where('status', true)->where('type', PaymentMethods::TYPE_PHONEPE)->first();
                         $invoice = Invoices::create([
                             'user_id'        => $senderid->user_id,
                             'currency_id'    => $senderid->currency_id,
@@ -1838,7 +1838,63 @@ POSTXML;
                             'status'  => 'error',
                             'message' => $status,
                         ]);
+                    case PaymentMethods::TYPE_PHONEPE:
+                        $code = $request->post("code");
+                        $txnid = $request->post("transactionId");
+                        $amount = $request->post("amount");
+                        if (intval($amount) != intval($price * 100)) {
+                            return redirect()->route('user.home')->with([
+                                'status'  => 'info',
+                                'message' => __('locale.exceptions.invalid_action'),
+                            ]);
+                        }
+                        if ($code == 'PAYMENT_SUCCESS') {
+                            $paymentMethod = PaymentMethods::where('status', true)->where('type', PaymentMethods::TYPE_PHONEPE)->first();
+                            $invoice = Invoices::create([
+                                'user_id'        => $user->id,
+                                'currency_id'    => $user->customer->subscription->plan->currency->id,
+                                'payment_method' => $paymentMethod->id,
+                                'amount'         => $price,
+                                'type'           => Invoices::TYPE_SUBSCRIPTION,
+                                'description'    => __('locale.auth.top_up_sms_unit') . ': ' . $sms_unit . ' ' . __('locale.labels.sms_credit'),
+                                'transaction_id' => $txnid,
+                                'status'         => Invoices::STATUS_PAID,
+                            ]);
 
+                            if ($invoice) {
+
+                                if ($user->sms_unit != '-1') {
+                                    $user->sms_unit += $sms_unit;
+                                    $user->save();
+                                }
+                                $subscription = $user->customer->activeSubscription();
+
+                                $subscription->addTransaction(SubscriptionTransaction::TYPE_SUBSCRIBE, [
+                                    'status' => SubscriptionTransaction::STATUS_SUCCESS,
+                                    'title'  => 'Add ' . $sms_unit . ' sms units',
+                                    'amount' => $sms_unit . ' sms units',
+                                ]);
+
+
+                                if ($user->customer->getNotifications()['subscription'] == 'yes') {
+                                    $user->notify(new TopupNotification($sms_unit, $invoice->uid));
+                                }
+
+                                return redirect()->route('user.home')->with([
+                                    'status'  => 'success',
+                                    'message' => __('locale.payment_gateways.payment_successfully_made'),
+                                ]);
+                            }
+
+                            return redirect()->route('user.home')->with([
+                                'status'  => 'error',
+                                'message' => __('locale.exceptions.something_went_wrong'),
+                            ]);
+                        }
+                        return redirect()->route('user.home')->with([
+                            'status'  => 'error',
+                            'message' => $code,
+                        ]);
                     case PaymentMethods::TYPE_DIRECTPAYONLINE:
                         $paymentMethod = PaymentMethods::where('status', true)->where('type', PaymentMethods::TYPE_DIRECTPAYONLINE)->first();
 
@@ -2665,6 +2721,7 @@ POSTXML;
                 case PaymentMethods::TYPE_PAYU:
                 case PaymentMethods::TYPE_COINPAYMENTS:
                 case PaymentMethods::TYPE_PAYUMONEY:
+                case PaymentMethods::TYPE_PHONEPE:
                 case PaymentMethods::TYPE_PAYHERELK:
                 case PaymentMethods::TYPE_MPGS:
                 case PaymentMethods::TYPE_0XPROCESSING:
@@ -2705,6 +2762,7 @@ POSTXML;
                 case PaymentMethods::TYPE_PAYU:
                 case PaymentMethods::TYPE_COINPAYMENTS:
                 case PaymentMethods::TYPE_PAYUMONEY:
+                case PaymentMethods::TYPE_PHONEPE:
                 case PaymentMethods::TYPE_DIRECTPAYONLINE:
                 case PaymentMethods::TYPE_PAYHERELK:
                 case PaymentMethods::TYPE_SELCOMMOBILE:
@@ -4579,6 +4637,7 @@ POSTXML;
                 case PaymentMethods::TYPE_PAYU:
                 case PaymentMethods::TYPE_COINPAYMENTS:
                 case PaymentMethods::TYPE_PAYUMONEY:
+                case PaymentMethods::TYPE_PHONEPE:
                 case PaymentMethods::TYPE_PAYHERELK:
                 case PaymentMethods::TYPE_MPGS:
                 case PaymentMethods::TYPE_0XPROCESSING:
@@ -5076,7 +5135,53 @@ POSTXML;
                         'status'  => 'error',
                         'message' => $status,
                     ]);
+                case PaymentMethods::TYPE_PHONEPE:
+                    $code = $request->post("code");
+                    $txnid = $request->post("transactionId");
+                    $amount = $request->post("amount");
+                    if (intval($amount) != intval($number->price * 100)) {
+                        return redirect()->route('customer.numbers.pay', $number->uid)->with([
+                            'status'  => 'info',
+                            'message' => __('locale.exceptions.invalid_action'),
+                        ]);
+                    }
+                    if ($code == 'PAYMENT_SUCCESS') {
+                        $paymentMethod = PaymentMethods::where('status', true)->where('type', PaymentMethods::TYPE_PHONEPE)->first();
+                        $invoice = Invoices::create([
+                            'user_id'        => auth()->user()->id,
+                            'currency_id'    => $number->currency_id,
+                            'payment_method' => $paymentMethod->id,
+                            'amount'         => $number->price,
+                            'type'           => Invoices::TYPE_NUMBERS,
+                            'description'    => __('locale.phone_numbers.payment_for_number') . ' ' . $number->number,
+                            'transaction_id' => $txnid,
+                            'status'         => Invoices::STATUS_PAID,
+                        ]);
 
+                        if ($invoice) {
+                            $current               = Carbon::now();
+                            $number->user_id       = auth()->user()->id;
+                            $number->validity_date = $current->add($number->frequency_unit, $number->frequency_amount);
+                            $number->status        = 'assigned';
+                            $number->save();
+
+                            $this->createNotification('number', $number->number, User::find($number->user_id)->displayName());
+
+                            return redirect()->route('customer.numbers.index')->with([
+                                'status'  => 'success',
+                                'message' => __('locale.payment_gateways.payment_successfully_made'),
+                            ]);
+                        }
+
+                        return redirect()->route('customer.numbers.pay', $number->uid)->with([
+                            'status'  => 'error',
+                            'message' => __('locale.exceptions.something_went_wrong'),
+                        ]);
+                    }
+                    return redirect()->route('customer.numbers.pay', $number->uid)->with([
+                        'status'  => 'error',
+                        'message' => $code,
+                    ]);
                 case PaymentMethods::TYPE_DIRECTPAYONLINE:
                     $paymentMethod = PaymentMethods::where('status', true)->where('type', PaymentMethods::TYPE_DIRECTPAYONLINE)->first();
 
@@ -6222,6 +6327,7 @@ POSTXML;
                 case PaymentMethods::TYPE_PAYU:
                 case PaymentMethods::TYPE_COINPAYMENTS:
                 case PaymentMethods::TYPE_PAYUMONEY:
+                case PaymentMethods::TYPE_PHONEPE:
                 case PaymentMethods::TYPE_PAYHERELK:
                 case PaymentMethods::TYPE_MPGS:
                 case PaymentMethods::TYPE_0XPROCESSING:
@@ -6789,7 +6895,64 @@ POSTXML;
                         'status'  => 'error',
                         'message' => $status,
                     ]);
+                case PaymentMethods::TYPE_PHONEPE:
+                    $code = $request->post("code");
+                    $txnid = $request->post("transactionId");
+                    $amount = $request->post("amount");
+                    if (intval($amount) != intval($keyword->price * 100)) {
+                        return redirect()->route('customer.keywords.pay', $keyword->uid)->with([
+                            'status'  => 'info',
+                            'message' => __('locale.exceptions.invalid_action'),
+                        ]);
+                    }
+                    if ($code == 'PAYMENT_SUCCESS') {
+                        $paymentMethod = PaymentMethods::where('status', true)->where('type', PaymentMethods::TYPE_PHONEPE)->first();
+                        $invoice = Invoices::create([
+                            'user_id'        => auth()->user()->id,
+                            'currency_id'    => $keyword->currency_id,
+                            'payment_method' => $paymentMethod->id,
+                            'amount'         => $keyword->price,
+                            'type'           => Invoices::TYPE_KEYWORD,
+                            'description'    => __('locale.keywords.payment_for_keyword') . ' ' . $keyword->keyword_name,
+                            'transaction_id' => $txnid,
+                            'status'         => Invoices::STATUS_PAID,
+                        ]);
 
+                        if ($invoice) {
+                            $current                = Carbon::now();
+                            $keyword->user_id       = auth()->user()->id;
+                            $keyword->validity_date = $current->add($keyword->frequency_unit, $keyword->frequency_amount);
+                            $keyword->status        = 'assigned';
+                            $keyword->save();
+
+                            $this->createNotification('keyword', $keyword->keyword_name, User::find($keyword->user_id)->displayName());
+
+                            if (Helper::app_config('keyword_notification_email')) {
+                                $admin = User::find(1);
+                                $admin->notify(new KeywordPurchase(route('admin.keywords.show', $keyword->uid)));
+                            }
+
+                            $user = auth()->user();
+
+                            if ($user->customer->getNotifications()['keyword'] == 'yes') {
+                                $user->notify(new KeywordPurchase(route('customer.keywords.show', $keyword->uid)));
+                            }
+
+                            return redirect()->route('customer.keywords.index')->with([
+                                'status'  => 'success',
+                                'message' => __('locale.payment_gateways.payment_successfully_made'),
+                            ]);
+                        }
+
+                        return redirect()->route('customer.keywords.pay', $keyword->uid)->with([
+                            'status'  => 'error',
+                            'message' => __('locale.exceptions.something_went_wrong'),
+                        ]);
+                    }
+                    return redirect()->route('customer.keywords.pay', $keyword->uid)->with([
+                        'status'  => 'error',
+                        'message' => $code,
+                    ]);
                 case PaymentMethods::TYPE_DIRECTPAYONLINE:
                     $paymentMethod = PaymentMethods::where('status', true)->where('type', PaymentMethods::TYPE_DIRECTPAYONLINE)->first();
                     if ($paymentMethod) {
@@ -8768,7 +8931,112 @@ POSTXML;
                         'status'  => 'error',
                         'message' => $status,
                     ]);
+                case PaymentMethods::TYPE_PHONEPE:
+                    $code = $request->post("code");
+                    $txnid = $request->post("transactionId");
+                    $amount = $request->post("amount");
+                    if (intval($amount) != intval($plan->price * 100)) {
+                        return redirect()->route('customer.subscriptions.purchase', $plan->uid)->with([
+                            'status'  => 'info',
+                            'message' => __('locale.exceptions.invalid_action'),
+                        ]);
+                    }
+                    if ($code == 'PAYMENT_SUCCESS') {
+                        $paymentMethod = PaymentMethods::where('status', true)->where('type', PaymentMethods::TYPE_PHONEPE)->first();
+                        $invoice = Invoices::create([
+                            'user_id'        => auth()->user()->id,
+                            'currency_id'    => $plan->currency_id,
+                            'payment_method' => $paymentMethod->id,
+                            'amount'         => $plan->price,
+                            'type'           => Invoices::TYPE_SUBSCRIPTION,
+                            'description'    => __('locale.subscription.payment_for_plan') . ' ' . $plan->name,
+                            'transaction_id' => $txnid,
+                            'status'         => Invoices::STATUS_PAID,
+                        ]);
 
+                        if ($invoice) {
+                            if (Auth::user()->customer->activeSubscription()) {
+                                Auth::user()->customer->activeSubscription()->cancelNow();
+                            }
+
+                            if (Auth::user()->customer->subscription) {
+                                $subscription = Auth::user()->customer->subscription;
+
+                                $get_options           = json_decode($subscription->options, true);
+                                $output                = array_replace($get_options, [
+                                    'send_warning' => false,
+                                ]);
+                                $subscription->options = json_encode($output);
+
+                            } else {
+                                $subscription           = new Subscription();
+                                $subscription->user_id  = Auth::user()->id;
+                                $subscription->start_at = Carbon::now();
+                            }
+
+                            $subscription->status                 = Subscription::STATUS_ACTIVE;
+                            $subscription->plan_id                = $plan->getBillableId();
+                            $subscription->end_period_last_days   = '10';
+                            $subscription->current_period_ends_at = $subscription->getPeriodEndsAt(Carbon::now());
+                            $subscription->end_at                 = null;
+                            $subscription->end_by                 = null;
+                            $subscription->payment_method_id      = $paymentMethod->id;
+                            $subscription->save();
+
+                            // add transaction
+                            $subscription->addTransaction(SubscriptionTransaction::TYPE_SUBSCRIBE, [
+                                'end_at'                 => $subscription->end_at,
+                                'current_period_ends_at' => $subscription->current_period_ends_at,
+                                'status'                 => SubscriptionTransaction::STATUS_SUCCESS,
+                                'title'                  => trans('locale.subscription.subscribed_to_plan', ['plan' => $subscription->plan->getBillableName()]),
+                                'amount'                 => $subscription->plan->getBillableFormattedPrice(),
+                            ]);
+
+                            // add log
+                            $subscription->addLog(SubscriptionLog::TYPE_ADMIN_PLAN_ASSIGNED, [
+                                'plan'  => $subscription->plan->getBillableName(),
+                                'price' => $subscription->plan->getBillableFormattedPrice(),
+                            ]);
+
+                            $user = User::find(auth()->user()->id);
+
+                            if ($user->sms_unit == null || $user->sms_unit == '-1' || $plan->getOption('sms_max') == '-1') {
+                                $user->sms_unit = $plan->getOption('sms_max');
+                            } else {
+                                $user->sms_unit += ($plan->getOption('add_previous_balance') == 'yes') ? $plan->getOption('sms_max') : 0;
+                            }
+
+                            $user->save();
+
+                            $this->createNotification('plan', $plan->name, auth()->user()->displayName());
+
+                            //Add default Sender id
+                            $this->planSenderID($plan, $user);
+
+                            if (Helper::app_config('subscription_notification_email')) {
+                                $admin = User::find(1);
+                                $admin->notify(new SubscriptionPurchase(route('admin.invoices.view', $invoice->uid)));
+                            }
+
+                            if ($user->customer->getNotifications()['subscription'] == 'yes') {
+                                $user->notify(new SubscriptionPurchase(route('customer.invoices.view', $invoice->uid)));
+                            }
+
+                            return redirect()->route('customer.subscriptions.index')->with([
+                                'status'  => 'success',
+                                'message' => __('locale.payment_gateways.payment_successfully_made'),
+                            ]);
+                        }
+
+                        return redirect()->route('customer.subscriptions.purchase', $plan->uid)->with([
+                            'status'  => 'error',
+                            'message' => __('locale.exceptions.something_went_wrong'),
+                        ]);
+                    }
+                    return redirect()->route('customer.subscriptions.purchase', $plan->uid)->with([
+                        'status'  => 'error',
+                        'message' => $code,
+                    ]);
                 case PaymentMethods::TYPE_DIRECTPAYONLINE:
                     $paymentMethod = PaymentMethods::where('status', true)->where('type', PaymentMethods::TYPE_DIRECTPAYONLINE)->first();
 
@@ -10137,6 +10405,7 @@ POSTXML;
                 case PaymentMethods::TYPE_PAYU:
                 case PaymentMethods::TYPE_COINPAYMENTS:
                 case PaymentMethods::TYPE_PAYUMONEY:
+                case PaymentMethods::TYPE_PHONEPE:
                 case PaymentMethods::TYPE_PAYHERELK:
                 case PaymentMethods::TYPE_MPGS:
                 case PaymentMethods::TYPE_0XPROCESSING:

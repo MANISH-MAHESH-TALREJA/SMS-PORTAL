@@ -623,6 +623,80 @@ class EloquentPhoneNumberRepository extends EloquentBaseRepository implements Ph
                     $payumoney->gw_submit();
 
                     exit();
+                case PaymentMethods::TYPE_PHONEPE:
+
+                    try
+                    {
+                        Session::put('payment_method', $paymentMethod->type);
+                        $merchantTransactionId = strtoupper(substr(hash('sha256', mt_rand() . microtime()), 0, 20));
+
+                        $data = array(
+                            'merchantId' => $credentials->merchant_key,
+                            'merchantTransactionId' => $merchantTransactionId,
+                            'merchantUserId' => $merchantTransactionId,
+                            'amount' => $number->price * 100,
+                            'redirectUrl' => route('customer.numbers.payment_success', $number->uid),
+                            'redirectMode' => 'POST',
+                            'callbackUrl' => route('customer.numbers.payment_success', $number->uid),
+                            'mobileNumber' => $input['phone'],
+                            'paymentInstrument' =>
+                                array(
+                                    'type' => 'PAY_PAGE',
+                                ),
+                        );
+                        $encode = base64_encode(json_encode($data));
+
+                        $string = $encode . '/pg/v1/pay' . $credentials->merchant_salt;
+                        $sha256 = hash('sha256', $string);
+                        $finalXHeader = $sha256 . '###1';
+
+                        $curl = curl_init();
+
+                        curl_setopt_array($curl, array(
+                            CURLOPT_URL => $credentials->environment == 'production' ? 'https://api.phonepe.com/apis/hermes' : 'https://api-preprod.phonepe.com/apis/pg-sandbox' . '/pg/v1/pay',
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_ENCODING => '',
+                            CURLOPT_MAXREDIRS => 10,
+                            CURLOPT_TIMEOUT => 0,
+                            CURLOPT_FOLLOWLOCATION => false,
+                            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                            CURLOPT_CUSTOMREQUEST => 'POST',
+                            CURLOPT_POSTFIELDS => json_encode(['request' => $encode]),
+                            CURLOPT_HTTPHEADER => array(
+                                'Content-Type: application/json',
+                                'X-VERIFY: ' . $finalXHeader
+                            ),
+                        ));
+
+                        $response = curl_exec($curl);
+
+                        curl_close($curl);
+
+                        $rData = json_decode($response);
+
+                        if(isset($rData->data->instrumentResponse->redirectInfo->url))
+                        {
+                            return response()->json([
+                                'status'       => 'success',
+                                'redirect_url' => $rData->data->instrumentResponse->redirectInfo->url,
+                            ]);
+                        }
+                        else
+                        {
+                            return response()->json([
+                                'status'  => 'error',
+                                'message' => __('locale.exceptions.something_went_wrong'),
+                            ]);
+                        }
+                    }
+                    catch (Exception $exception)
+                    {
+                        return response()->json([
+                            'status'  => 'error',
+                            'message' => $exception->getMessage() . " -> " . $exception->getLine() . " -> " . $exception->getMessage(),
+                        ]);
+
+                    }
 
                 case PaymentMethods::TYPE_RAZORPAY:
 
