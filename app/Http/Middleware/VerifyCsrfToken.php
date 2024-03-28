@@ -19,13 +19,14 @@ class VerifyCsrfToken extends Middleware
      * @var array
      */
     protected $except = [
-            '/callback/sslcommerz/*',
+        '*',
+            /*'/callback/sslcommerz/*',
             '/callback/aamarpay/*',
             '/callback/flutterwave/*',
             '/callback/razorpay/*',
             '/callback/paytech/*',
             'inbound/*',
             '/payment/*',
-            'dlr/*',
+            'dlr/*',*/
     ];
 }

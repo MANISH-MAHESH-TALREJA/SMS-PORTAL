@@ -46,6 +46,8 @@ class PaymentMethods extends Model
 
     const TYPE_RAZORPAY = 'razorpay';
 
+    const TYPE_PHONEPE = 'phonepe';
+
     const TYPE_SSLCOMMERZ = 'sslcommerz';
 
     const TYPE_AAMARPAY = 'aamarpay';

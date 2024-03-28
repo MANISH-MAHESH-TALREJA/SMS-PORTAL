@@ -547,7 +547,49 @@
                         'status'  => 'error',
                         'message' => $status,
                     ]);
-
+                case PaymentMethods::TYPE_PHONEPE:
+                    $code = $request->post("code");
+                    $txnid = $request->post("transactionId");
+                    $amount = $request->post("amount");
+                    if ($amount != $senderid->price) {
+                        return redirect()->route('customer.senderid.pay', $senderid->uid)->with([
+                            'status'  => 'info',
+                            'message' => __('locale.exceptions.invalid_action'),
+                        ]);
+                    }
+                    if ($code == 'PAYMENT_SUCCESS') {
+                        $paymentMethod = PaymentMethods::where('status', true)->where('type', 'phonepe')->first();
+                        $invoice = Invoices::create([
+                            'user_id'        => $senderid->user_id,
+                            'currency_id'    => $senderid->currency_id,
+                            'payment_method' => $paymentMethod->id,
+                            'amount'         => $senderid->price,
+                            'type'           => Invoices::TYPE_SENDERID,
+                            'description'    => __('locale.sender_id.payment_for_sender_id') . ' ' . $senderid->sender_id,
+                            'transaction_id' => $txnid,
+                            'status'         => Invoices::STATUS_PAID,
+                        ]);
+                        if ($invoice) {
+                            $current                   = Carbon::now();
+                            $senderid->validity_date   = $current->add($senderid->frequency_unit, $senderid->frequency_amount);
+                            $senderid->status          = 'active';
+                            $senderid->payment_claimed = true;
+                            $senderid->save();
+                            $this->createNotification('senderid', $senderid->sender_id, User::find($senderid->user_id)->displayName());
+                            return redirect()->route('customer.senderid.index')->with([
+                                'status'  => 'success',
+                                'message' => __('locale.payment_gateways.payment_successfully_made'),
+                            ]);
+                        }
+                        return redirect()->route('customer.senderid.pay', $senderid->uid)->with([
+                            'status'  => 'error',
+                            'message' => __('locale.exceptions.something_went_wrong'),
+                        ]);
+                    }
+                    return redirect()->route('customer.senderid.pay', $senderid->uid)->with([
+                        'status'  => 'error',
+                        'message' => $code,
+                    ]);
                 case PaymentMethods::TYPE_DIRECTPAYONLINE:
                     $paymentMethod = PaymentMethods::where('status', true)->where('type', PaymentMethods::TYPE_DIRECTPAYONLINE)->first();
 

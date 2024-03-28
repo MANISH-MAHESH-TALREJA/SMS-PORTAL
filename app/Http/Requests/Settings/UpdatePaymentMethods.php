@@ -94,6 +94,7 @@ class UpdatePaymentMethods extends FormRequest
                 $rules['api_key'] = 'required';
                 break;
 
+            case PaymentMethods::TYPE_PHONEPE:
             case PaymentMethods::TYPE_PAYUMONEY:
                 $rules['merchant_key'] = 'required';
                 $rules['merchant_salt'] = 'required';

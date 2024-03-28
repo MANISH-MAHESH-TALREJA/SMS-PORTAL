@@ -622,6 +622,57 @@
                                                 </div>
                                             </div>
 
+                                        @elseif($gateway->type == PaymentMethods::TYPE_PHONEPE)
+
+                                            <div class="col-12">
+                                                <div class="mb-1">
+                                                    <label for="environment"
+                                                           class="form-label required">{{ __('locale.labels.environment') }}</label>
+                                                    <select class="form-select" name="environment" id="environment">
+                                                        <option value="sandbox"
+                                                                @if($gateway->getOption('environment') == 'sandbox' ) selected @endif>{{ __('locale.labels.sandbox') }}</option>
+                                                        <option value="production"
+                                                                @if($gateway->getOption('environment') == 'production' ) selected @endif>{{ __('locale.labels.production')}} </option>
+                                                    </select>
+                                                    @error('environment')
+                                                    <div class="text-danger">
+                                                        {{ $message }}
+                                                    </div>
+                                                    @enderror
+                                                </div>
+                                            </div>
+
+
+                                            <div class="col-12">
+                                                <div class="mb-1">
+                                                    <label for="merchant_key"
+                                                           class="form-label required">{{ __('locale.labels.merchant_key') }}</label>
+                                                    <input type="text" id="secret" name="merchant_key"
+                                                           class="form-control"
+                                                           value="{{ $gateway->getOption('merchant_key') }}" required>
+                                                    @error('merchant_key')
+                                                    <div class="text-danger">
+                                                        {{ $message }}
+                                                    </div>
+                                                    @enderror
+                                                </div>
+                                            </div>
+
+                                            <div class="col-12">
+                                                <div class="mb-1">
+                                                    <label for="merchant_salt"
+                                                           class="form-label required">{{ __('locale.labels.merchant_salt') }}</label>
+                                                    <input type="text" id="secret" name="merchant_salt"
+                                                           class="form-control"
+                                                           value="{{ $gateway->getOption('merchant_salt') }}" required>
+                                                    @error('merchant_salt')
+                                                    <div class="text-danger">
+                                                        {{ $message }}
+                                                    </div>
+                                                    @enderror
+                                                </div>
+                                            </div>
+
                                         @elseif($gateway->type == PaymentMethods::TYPE_RAZORPAY)
 
                                             <div class="col-12">
