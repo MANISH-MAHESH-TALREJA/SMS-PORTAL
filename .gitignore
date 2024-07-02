@@ -2,3 +2,6 @@
 .idea/php.xml
 .idea/sms.xml
 storage/
+*.zip
+public/senderid_docs/
+.user.ini

@@ -22,7 +22,7 @@
     use App\Repositories\Contracts\SenderIDRepository;
     use Braintree\Gateway;
     use Carbon\Carbon;
-    use Dipesh79\LaravelPhonePe\LaravelPhonePe;
+
     use Exception;
     use Illuminate\Http\JsonResponse;
     use Illuminate\Support\Arr;
@@ -741,7 +741,7 @@
                             $curl = curl_init();
 
                             curl_setopt_array($curl, array(
-                                CURLOPT_URL => $credentials->environment == 'production' ? 'https://api.phonepe.com/apis/hermes' : 'https://api-preprod.phonepe.com/apis/pg-sandbox' . '/pg/v1/pay',
+                                CURLOPT_URL => $credentials->environment == 'production' ? 'https://api.phonepe.com/apis/hermes/pg/v1/pay' : 'https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay',
                                 CURLOPT_RETURNTRANSFER => true,
                                 CURLOPT_ENCODING => '',
                                 CURLOPT_MAXREDIRS => 10,
